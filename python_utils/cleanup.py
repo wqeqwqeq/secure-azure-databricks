@@ -50,6 +50,7 @@ if __name__ == "__main__":
     resource_group_list = [
         ["vm", "dbx-data-plane", "dbx-transit"],
         "dbx-network",
+        ["hub-network-rg","spoke-network-rg"],
         ["dbx-Private-ManagementRG", "dbx-webauth-ManagementRG"]
     ]
     delete_resource_groups(resource_group_list)

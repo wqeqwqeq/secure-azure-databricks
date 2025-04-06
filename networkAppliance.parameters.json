@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "hubNetwork": {
+      "value": {
+        "name":"hub-network",
+        "hubnetworkAddressRange":"10.2.0.0/20"
+      }
+    },
+    "vpnGateway": {
+      "value": {
+        "name": "p2sVpnGatewayAAD",
+        "gatewaySubnetRange":"10.2.1.0/24"
+
+      }
+    },
+    "dnsResolver": {
+      "value": {
+        "name": "dns-resolver",
+        "dnsResolverSubnetRange":"10.2.2.0/28",
+        "dnsInboundStaticIp":"10.2.2.4"
+      }
+    }
+  }
+}

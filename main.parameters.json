@@ -2,6 +2,24 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
+        "resourceGroups": {
+            "value": {
+                "network": "dbx-network",
+                "transit": "dbx-transit",
+                "data": "dbx-data-plane"
+            }
+        },
+        "stg": {
+            "value": {
+                "name": "stgseast2securedbxadls"
+            }
+        },
+        "databricks": {
+            "value": {
+                "secureWorkspaceName": "dbx-Private",
+                "webAuthName": "dbx-webauth"
+            }
+        },
         "dataPlaneNetwork": {
             "value": {
                 "name": "dbx-data-plane-network",

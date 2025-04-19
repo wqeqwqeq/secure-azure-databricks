@@ -1,17 +1,11 @@
 targetScope = 'subscription'
 param location string = 'eastus'
 param currentTime string = utcNow()
+param resourceGroups object
+param stg object
+param databricks object
 param dataPlaneNetwork object
 param transitPlaneNetwork object
-
-var resourceGroups = {
-  network: dbx_network_rg.name
-  transit: dbx_transit_rg.name
-  data: dbx_data_plane_rg.name
-} 
-
-var databricksName = 'dbx-Private'
-var databricksWebAuthName = 'dbx-webauth'
 
 var tag = {
   project: 'dbx-private'
@@ -19,19 +13,19 @@ var tag = {
 }
 
 resource dbx_data_plane_rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
-  name: 'dbx-data-plane'
+  name: resourceGroups.data
   location: location
   tags: tag
 }
 
 resource dbx_network_rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
-  name: 'dbx-network'
+  name: resourceGroups.network
   location: location
   tags: tag
 }
 
 resource dbx_transit_rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
-  name: 'dbx-transit'
+  name: resourceGroups.transit
   location: location
   tags: tag
 }
@@ -104,6 +98,7 @@ module data_plane_network 'modules/vnet.bicep' = {
     ]
   }
 }
+
 
 module data_transit_network 'modules/vnet.bicep' = {
   name: 'data-transit-network-${currentTime}'
@@ -205,8 +200,8 @@ module dbxWorkspace 'modules/databricks.bicep' = {
   name: 'dbxWorkspace-${currentTime}'
   scope: resourceGroup(resourceGroups.data)
   params: {
-    workspaceName: databricksName
-    managementRGname: '${databricksName}-ManagementRG'
+    workspaceName: databricks.secureWorkspaceName
+    managementRGname: '${databricks.secureWorkspaceName}-ManagementRG'
     vnetId: data_plane_network.outputs.id
     privateSubnetName: dataPlaneNetwork.subnets.dbxPrivateSubnet.name
     publicSubnetName: dataPlaneNetwork.subnets.dbxPublicSubnet.name
@@ -254,8 +249,8 @@ module dbxWebAuth 'modules/databricks.bicep' = {
   name: 'dbxWebAuth-${currentTime}'
   scope: resourceGroup(resourceGroups.transit)
   params: {
-    workspaceName: databricksWebAuthName
-    managementRGname: '${databricksWebAuthName}-ManagementRG'
+    workspaceName: databricks.webAuthName
+    managementRGname: '${databricks.webAuthName}-ManagementRG'
     vnetId: data_transit_network.outputs.id
     privateSubnetName: transitPlaneNetwork.subnets.dbxPrivateSubnet.name
     publicSubnetName: transitPlaneNetwork.subnets.dbxPublicSubnet.name
@@ -281,3 +276,12 @@ module dbxWebAuthPE 'modules/privatEndpoint.bicep' = {
 }
 
 
+module storageAccount 'modules/storageAccountPE.bicep' = {
+  name: 'storage-account-${currentTime}'
+  scope: resourceGroup(resourceGroups.data)
+  params: {
+    storageAccountName: stg.name
+    vnetName: dataPlaneNetwork.name
+    subnetName: dataPlaneNetwork.subnets.peSubnet.name
+  }
+}

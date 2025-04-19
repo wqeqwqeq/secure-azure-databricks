@@ -2,7 +2,7 @@
 
 This project automates the deployment of a secure Databricks workspace with private endpoints and Point-to-Site (P2S) VPN connectivity. It enables secure access to Databricks from on-premise machines while maintaining network isolation.
 
-![Architecture Diagram](.img/architecture.png)
+![Architecture Diagram](.img/dbx-secure-connect.png)
 
 ## Architecture Overview
 

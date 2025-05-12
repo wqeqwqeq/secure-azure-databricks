@@ -1,0 +1,84 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "resourceGroups": {
+            "value": {
+                "network": "dbx-network",
+                "transit": "dbx-transit",
+                "data": "dbx-data-plane"
+            }
+        },
+        "stg": {
+            "value": {
+                "name": "stgseast2securedbxadls"
+            }
+        },
+        "databricks": {
+            "value": {
+                "secureWorkspaceName": "dbx-Private",
+                "webAuthName": "dbx-webauth"
+            }
+        },
+        "dataPlaneNetwork": {
+            "value": {
+                "name": "dbx-data-plane-network",
+                "addressSpace": "10.0.0.0/20",
+                "subnets": {
+                    "peSubnet": {
+                        "name": "privateEndpoint-subnet",
+                        "range": "10.0.0.0/26",
+                        "nsgEnabled": false
+                    },
+                    "dbxPublicSubnet": {
+                        "name": "dbx-private-public-subnet",
+                        "range": "10.0.1.0/26",
+                        "nsgEnabled": true,
+                        "delegations": [
+                            "Microsoft.Databricks/workspaces"
+                        ],
+                        "routeTableEnabled": false,
+                        "natGatewayEnabled": false
+                    },
+                    "dbxPrivateSubnet": {
+                        "name": "dbx-private-private-subnet",
+                        "range": "10.0.2.0/26",
+                        "nsgEnabled": true,
+                        "delegations": [
+                            "Microsoft.Databricks/workspaces"
+                        ],
+                        "routeTableEnabled": false,
+                        "natGatewayEnabled": false
+                    }
+                }
+            }
+        },
+        "transitPlaneNetwork": {
+            "value": {
+                "name": "dbx-transit-plane-network",
+                "addressSpace": "10.1.0.0/20",
+                "subnets": {
+                    "peSubnet": {
+                        "name": "privateEndpoint-subnet",
+                        "range": "10.1.0.0/26",
+                        "nsgEnabled": false
+                    },
+                    "dbxPublicSubnet": {
+                        "name": "dbx-webauth-public-subnet",
+                        "range": "10.1.1.0/26",
+                        "nsgEnabled": true,
+                        "routeTableEnabled": false,
+                        "natGatewayEnabled": false
+                    },
+                    "dbxPrivateSubnet": {
+                        "name": "dbx-webauth-private-subnet",
+                        "range": "10.1.2.0/26",
+                        "nsgEnabled": true,
+                        "routeTableEnabled": false,
+                        "natGatewayEnabled": false
+                    }
+                }
+            }
+        }
+    }
+}

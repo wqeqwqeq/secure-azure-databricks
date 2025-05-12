@@ -1,104 +1,173 @@
 targetScope = 'subscription'
 param location string = 'eastus'
 param currentTime string = utcNow()
-
-
-var dataPlaneSubent  = [
-  {
-    name: 'privateEndpoint-subnet'
-    range: '10.0.0.0/26'
-    nsgEnabled: false
-  }
-  {
-    name: 'dbx-private-public-subnet'
-    range: '10.0.1.0/26'
-    nsgEnabled: true
-    delegations: ['Microsoft.Databricks/workspaces']
-  }
-  {
-    name: 'dbx-private-private-subnet'
-    range: '10.0.2.0/26'
-    nsgEnabled: true
-    delegations: ['Microsoft.Databricks/workspaces']
-  }
-
-]
-var transitPlaneSubent  = [
-  {
-    name: 'privateEndpoint-subnet'
-    range: '10.1.0.0/26'
-    nsgEnabled: false
-  }
-  {
-    name: 'dbx-webauth-public-subnet'
-    range: '10.1.1.0/26'
-    nsgEnabled: true
-    delegations: ['Microsoft.Databricks/workspaces']
-  }
-  {
-    name: 'dbx-webauth-private-subnet'
-    range: '10.1.2.0/26'
-    nsgEnabled: true
-    delegations: ['Microsoft.Databricks/workspaces']
-  }
-
-]
-
-var resourceGroups = {
-  network: dbx_network_rg.name
-  transit: dbx_transit_rg.name
-  data: dbx_data_plane_rg.name
-} 
-
-
-
-var databricksName = 'dbx-Private'
-var databricksWebAuthName = 'dbx-webauth'
+param resourceGroups object
+param stg object
+param databricks object
+param dataPlaneNetwork object
+param transitPlaneNetwork object
 
 var tag = {
   project: 'dbx-private'
   env: 'dev'
 }
 
-
 resource dbx_data_plane_rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
-  name: 'dbx-data-plane'
+  name: resourceGroups.data
   location: location
   tags: tag
 }
 
 resource dbx_network_rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
-  name: 'dbx-network'
+  name: resourceGroups.network
   location: location
   tags: tag
 }
 
 resource dbx_transit_rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
-  name: 'dbx-transit'
+  name: resourceGroups.transit
   location: location
   tags: tag
 }
-
-
 
 module data_plane_network 'modules/vnet.bicep' = {
   name: 'data-plane-network-${currentTime}'
   scope: resourceGroup(resourceGroups.network)
   params: {
-    addressPrefixes: '10.0.0.0/20' 
-    virtualNetworkName: 'dbx-data-plane-network'
+    addressPrefixes: dataPlaneNetwork.addressSpace
+    virtualNetworkName: dataPlaneNetwork.name
+    subnets: [
+      {
+        name: dataPlaneNetwork.subnets.peSubnet.name
+        properties: {
+          addressPrefix: dataPlaneNetwork.subnets.peSubnet.range
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Disabled'
+        }
+      }
+      {
+        name: dataPlaneNetwork.subnets.dbxPrivateSubnet.name
+        properties: {
+          addressPrefix: dataPlaneNetwork.subnets.dbxPrivateSubnet.range
+          delegations: [
+            {
+              name: 'Microsoft.Databricks/workspaces'
+              properties: {
+                serviceName: 'Microsoft.Databricks/workspaces'
+              }
+            }
+          ]
+          networkSecurityGroup: {
+            id: nsg.outputs.nsgId
+          }
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Disabled'
+          routeTable: dataPlaneNetwork.subnets.dbxPrivateSubnet.routeTableEnabled ? {
+            id: 'to be implemented'
+          } : null
+          natGateway: dataPlaneNetwork.subnets.dbxPrivateSubnet.natGatewayEnabled ? {
+            id: 'to be implemented'
+          } : null
+        }
+      }
+      {
+        name: dataPlaneNetwork.subnets.dbxPublicSubnet.name
+        properties: {
+          addressPrefix: dataPlaneNetwork.subnets.dbxPublicSubnet.range
+          delegations: [
+            {
+              name: 'Microsoft.Databricks/workspaces'
+              properties: {
+                serviceName: 'Microsoft.Databricks/workspaces'
+              }
+            }
+          ]
+          networkSecurityGroup: {
+            id: nsg.outputs.nsgId
+          }
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Disabled'
+          routeTable: dataPlaneNetwork.subnets.dbxPublicSubnet.routeTableEnabled ? {
+            id: 'to be implemented'
+          } : null
+          natGateway: dataPlaneNetwork.subnets.dbxPublicSubnet.natGatewayEnabled ? {
+            id: 'to be implemented'
+          } : null
+        }
+      }
+    ]
   }
 }
+
 
 module data_transit_network 'modules/vnet.bicep' = {
   name: 'data-transit-network-${currentTime}'
   scope: resourceGroup(resourceGroups.network)
   params: {
-    addressPrefixes: '10.1.0.0/20' 
-    virtualNetworkName: 'dbx-transit-plane-network'
+    addressPrefixes: transitPlaneNetwork.addressSpace
+    virtualNetworkName: transitPlaneNetwork.name
+    subnets: [
+      {
+        name: transitPlaneNetwork.subnets.peSubnet.name
+        properties: {
+          addressPrefix: transitPlaneNetwork.subnets.peSubnet.range
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Disabled'
+        }
+      }
+      {
+        name: transitPlaneNetwork.subnets.dbxPrivateSubnet.name
+        properties: {
+          addressPrefix: transitPlaneNetwork.subnets.dbxPrivateSubnet.range
+          delegations: [
+            {
+              name: 'Microsoft.Databricks/workspaces'
+              properties: {
+                serviceName: 'Microsoft.Databricks/workspaces'
+              }
+            }
+          ]
+          networkSecurityGroup: {
+            id: nsg.outputs.nsgId
+          }
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Disabled'
+          routeTable: transitPlaneNetwork.subnets.dbxPrivateSubnet.routeTableEnabled ? {
+            id: 'to be implemented'
+          } : null
+          natGateway: transitPlaneNetwork.subnets.dbxPrivateSubnet.natGatewayEnabled ? {
+            id: 'to be implemented'
+          } : null
+        }
+      }
+      {
+        name: transitPlaneNetwork.subnets.dbxPublicSubnet.name
+        properties: {
+          addressPrefix: transitPlaneNetwork.subnets.dbxPublicSubnet.range
+          delegations: [
+            {
+              name: 'Microsoft.Databricks/workspaces'
+              properties: {
+                serviceName: 'Microsoft.Databricks/workspaces'
+              }
+            }
+          ]
+          networkSecurityGroup: {
+            id: nsg.outputs.nsgId
+          }
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Disabled'
+          routeTable: transitPlaneNetwork.subnets.dbxPublicSubnet.routeTableEnabled ? {
+            id: 'to be implemented'
+          } : null
+          natGateway: transitPlaneNetwork.subnets.dbxPublicSubnet.natGatewayEnabled ? {
+            id: 'to be implemented'
+          } : null
+        }
+      }
+    ]
   }
 }
-
 
 module nsg 'modules/nsg.bicep' = {
   name: 'nsg-${currentTime}'
@@ -109,44 +178,6 @@ module nsg 'modules/nsg.bicep' = {
   }
 }
 
-
-@batchSize(1)
-module subnet_data_plane 'modules/subnet.bicep' = [for subnet in dataPlaneSubent : { 
-  scope: resourceGroup(resourceGroups.network)
-  name: 'subnet-data-plane-${subnet.name}-${currentTime}'
-  params: {
-    vnetName: data_plane_network.outputs.name
-    subnetName: subnet.name
-    subnetRange: subnet.range 
-    delegations: subnet.?delegations?? []
-    networkSecurityGroupID: subnet.nsgEnabled ? nsg.outputs.nsgId : ''
-    natGatewayId: subnet.?natGatewayEnabled?? ''  // to be implemented
-    routeTable: subnet.?routeTableEnabled?? '' // to be implemented
-  }
-}
-]
-
-@batchSize(1)
-module subnet_transit_plane 'modules/subnet.bicep' = [for subnet in transitPlaneSubent : { 
-  scope: resourceGroup(resourceGroups.network)
-  name: 'subnet-transit-plane-${subnet.name}-${currentTime}'
-  params: {
-    vnetName: data_transit_network.outputs.name
-    subnetName: subnet.name
-    subnetRange: subnet.range 
-    delegations: subnet.?delegations?? []
-    networkSecurityGroupID: subnet.nsgEnabled ? nsg.outputs.nsgId : ''
-    natGatewayId: subnet.?natGatewayEnabled?? ''  // to be implemented
-    routeTable: subnet.?routeTableEnabled?? '' // to be implemented
-  }
-}
-]
-
-
-
-
-
-
 module dns_data_plane 'modules/dns.bicep' = {
   name: 'private-dns-data-${currentTime}'
   scope: resourceGroup(resourceGroups.data)
@@ -156,7 +187,6 @@ module dns_data_plane 'modules/dns.bicep' = {
   }
 }
 
-// dns in transit network 
 module dns_transit_plane 'modules/dns.bicep' = {
   name: 'private-dns-transit-${currentTime}'
   scope: resourceGroup(resourceGroups.transit)
@@ -166,20 +196,17 @@ module dns_transit_plane 'modules/dns.bicep' = {
   }
 }
 
-
-
 module dbxWorkspace 'modules/databricks.bicep' = {
   name: 'dbxWorkspace-${currentTime}'
   scope: resourceGroup(resourceGroups.data)
   params: {
-    workspaceName: databricksName
-    managementRGname: '${databricksName}-ManagementRG'
+    workspaceName: databricks.secureWorkspaceName
+    managementRGname: '${databricks.secureWorkspaceName}-ManagementRG'
     vnetId: data_plane_network.outputs.id
-    privateSubnetName: 'dbx-private-private-subnet'
-    publicSubnetName: 'dbx-private-public-subnet'
+    privateSubnetName: dataPlaneNetwork.subnets.dbxPrivateSubnet.name
+    publicSubnetName: dataPlaneNetwork.subnets.dbxPublicSubnet.name
     publicNetworkAccess: 'Disabled'
   }
-  dependsOn:[subnet_data_plane]
 }
 
 module dbxBackendPE 'modules/privatEndpoint.bicep' = {
@@ -194,7 +221,7 @@ module dbxBackendPE 'modules/privatEndpoint.bicep' = {
       }
     }]
     privateEndpointName: 'dbx-private-backend-pe'
-    subnetId: subnet_data_plane[0].outputs.id
+    subnetId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroups.network}/providers/Microsoft.Network/virtualNetworks/${dataPlaneNetwork.name}/subnets/${dataPlaneNetwork.subnets.peSubnet.name}'
     targetResourceId: dbxWorkspace.outputs.id
   }
 }
@@ -212,7 +239,7 @@ module dbxFrontendPE 'modules/privatEndpoint.bicep' = {
       }
     }]
     privateEndpointName: 'dbx-private-frontend-pe'
-    subnetId: subnet_transit_plane[0].outputs.id
+    subnetId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroups.network}/providers/Microsoft.Network/virtualNetworks/${transitPlaneNetwork.name}/subnets/${transitPlaneNetwork.subnets.peSubnet.name}'
     targetResourceId: dbxWorkspace.outputs.id
   }
   dependsOn: [dbxBackendPE]
@@ -222,14 +249,13 @@ module dbxWebAuth 'modules/databricks.bicep' = {
   name: 'dbxWebAuth-${currentTime}'
   scope: resourceGroup(resourceGroups.transit)
   params: {
-    workspaceName: databricksWebAuthName
-    managementRGname: '${databricksWebAuthName}-ManagementRG'
+    workspaceName: databricks.webAuthName
+    managementRGname: '${databricks.webAuthName}-ManagementRG'
     vnetId: data_transit_network.outputs.id
-    privateSubnetName: 'dbx-webauth-private-subnet'
-    publicSubnetName: 'dbx-webauth-public-subnet'
+    privateSubnetName: transitPlaneNetwork.subnets.dbxPrivateSubnet.name
+    publicSubnetName: transitPlaneNetwork.subnets.dbxPublicSubnet.name
     publicNetworkAccess: 'Disabled'
   }
-  dependsOn:[subnet_transit_plane]
 }
 
 module dbxWebAuthPE 'modules/privatEndpoint.bicep' = {
@@ -244,9 +270,18 @@ module dbxWebAuthPE 'modules/privatEndpoint.bicep' = {
       }
     }]
     privateEndpointName: 'dbx-webauth-pe'
-    subnetId: subnet_transit_plane[0].outputs.id
+    subnetId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroups.network}/providers/Microsoft.Network/virtualNetworks/${transitPlaneNetwork.name}/subnets/${transitPlaneNetwork.subnets.peSubnet.name}'
     targetResourceId: dbxWebAuth.outputs.id
   }
 }
 
 
+module storageAccount 'modules/storageAccountPE.bicep' = {
+  name: 'storage-account-${currentTime}'
+  scope: resourceGroup(resourceGroups.data)
+  params: {
+    storageAccountName: stg.name
+    vnetName: dataPlaneNetwork.name
+    subnetName: dataPlaneNetwork.subnets.peSubnet.name
+  }
+}
